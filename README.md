@@ -12,9 +12,9 @@ This project provides tools for:
 ## Features
 
 - Generates realistic synthetic emergency messages
-- Fine-tuned DistilBERT model for emergency classification
-- Supports multiple emergency categories with priority levels
-- Hierarchical classification (type → category → subcategory)
+- DistilBERT model for emergency classification
+- Supports emergency categories
+- Hierarchical classification (type → category → subcategory (will be implemented)
 - Jupyter notebook for training and evaluation
 
 ## Project Structure
