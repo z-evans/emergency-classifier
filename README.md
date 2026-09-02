@@ -1,208 +1,194 @@
 # Emergency Message Classifier
 
-A multi-model machine learning system for hierarchical classification of emergency messages into categories and subcategories. This project compares multiple state-of-the-art NLP architectures (DistilBERT, BERT, T5, LSTM-AWD) for emergency message classification with performance benchmarking.
+A research project for hierarchical classification of short emergency messages. It compares five pretrained NLP architectures—AWD-LSTM, BERT-base, DistilBERT-base, T5-small, and T5-base—under the same two-stage classification task.
 
-## Overview
+The first model identifies a broad emergency category. A second model receives that predicted category together with the original message and selects one of its valid subcategories.
 
-This project provides a complete pipeline for:
-
-- **Hierarchical Classification**: Two-stage classification system (category → subcategory)
-- **Multi-Model Training**: Compare performance across different architectures
-- **Performance Benchmarking**: End-to-end latency and throughput measurements
-- **Inference Utilities**: Reusable classification helpers and evaluation metrics
-
-## Features
-
-- **Multiple Model Architectures**:
-  - DistilBERT (efficient, recommended for production)
-  - BERT (higher accuracy)
-  - T5 (sequence-to-sequence classification)
-  - LSTM-AWD (recurrent neural networks)
-
-- **Hierarchical Classification**:
-  - Stage 1: Classify into 10 emergency categories
-  - Stage 2: Classify into 35+ subcategories (category-conditioned)
-
-- **Comprehensive Evaluation**:
-  - Confusion matrices
-  - Precision/Recall/F1 scores
-  - ROC-AUC curves
-  - Training loss tracking
-
-- **Production-Ready Benchmarking**:
-  - End-to-end inference timing
-  - Throughput measurements
-  - Multi-device support (CPU/GPU)
-  - Batch processing support
-
-## Project Structure
-
-```
-emergency-classifier/
-├── bert-base-category-subcategory.ipynb         # BERT training notebook
-├── distilbert-base-category-subcategory.ipynb   # DistilBERT training notebook
-├── t5-base-category-subcategory.ipynb           # T5-Base training notebook
-├── t5-small-category-subcategory.ipynb          # T5-Small training notebook
-├── lstm-awd-category-subcategory.ipynb          # LSTM-AWD training notebook
-├── classification_utils.py                      # Shared evaluation utilities
-├── benchmark_inference.py                       # Inference benchmarking script
-├── disaster_messages.csv                        # Training dataset (~1.1 MB)
-└── LICENSE
+```mermaid
+flowchart LR
+    A[Emergency message] --> B[Stage 1: category model]
+    B --> C[Predicted category]
+    A --> D[Stage 2: conditioned subcategory model]
+    C --> D
+    D --> E[Valid category / subcategory path]
 ```
 
-## Installation
+> [!CAUTION]
+> This is an experimental classifier, not a dispatch or medical-triage system. Its predictions should not be used as the sole basis for emergency decisions.
 
-### Prerequisites
+## What is included
 
-- Python 3.8+
-- CUDA 11.8+ (optional, for GPU acceleration)
-
-### Setup
-
-```bash
-# Clone the repository
-git clone <repo-url>
-cd emergency-classifier
-
-# Create virtual environment (recommended)
-python3 -m venv .venv
-source .venv/bin/activate  # On Windows: .venv\Scripts\activate
-
-# Install dependencies
-pip install -r requirements.txt
-```
-
-### Dependencies
-
-- `pandas` - Data manipulation
-- `numpy` - Numerical computing
-- `matplotlib` - Plotting and visualization
-- `scikit-learn` - ML metrics and utilities
-- `torch` - PyTorch framework
-- `transformers` - HuggingFace model library
-- `datasets` - Dataset loading and processing
+- Five end-to-end training and evaluation notebooks.
+- A common 70:15:15 stratified train/validation/test split with seed 42.
+- Shared preprocessing, scoring, metrics, and visualisation utilities.
+- Hierarchically constrained inference that prevents invalid category/subcategory combinations.
+- CPU and CUDA latency/throughput benchmarking for saved models.
+- Accuracy, macro precision, macro recall, macro F1, confusion-matrix, and one-vs-rest ROC-AUC analysis.
 
 ## Dataset
 
-**File**: `disaster_messages.csv` (~1.1 MB)
+[`disaster_messages.csv`](disaster_messages.csv) contains 10,000 labelled messages and the following columns:
 
-Contains labeled emergency messages with the following columns:
+| Column | Description |
+| --- | --- |
+| `type` | Message type recorded by the dataset. |
+| `category` | One of ten broad emergency categories. |
+| `subcategory` | Fine-grained label within the category. |
+| `priority` | Numeric priority supplied with the message. It is not used as a model input. |
+| `message` | Text classified by the models. |
 
-| Column          | Values                                          | Description                       |
-| --------------- | ----------------------------------------------- | --------------------------------- |
-| **category**    | medical, fire, flooding, trapped, etc.          | Primary emergency type            |
-| **subcategory** | injury, wildfire, flash_flood, in_vehicle, etc. | Specific emergency classification |
-| **message**     | Text                                            | The emergency message             |
+The dataset has 10 categories, 32 distinct subcategory names, and 33 valid category/subcategory paths. The path count is larger because `utility` is both a broad category and a subcategory of `infrastructure_damage`.
 
-### Emergency Categories & Subcategories
+| Category | Valid subcategories |
+| --- | --- |
+| `medical` | `injury`, `illness`, `heavy_bleeding`, `light_bleeding`, `unconscious` |
+| `fire` | `wildfire`, `structural_fire`, `vehicle_fire` |
+| `flooding` | `flash_flood`, `house_flooding`, `street_flooding` |
+| `utility` | `power_outage`, `water_outage`, `gas_leak` |
+| `missing_person` | `child`, `adult`, `elderly` |
+| `supply_request` | `food`, `water`, `clothing`, `other` |
+| `evacuation` | `voluntary`, `mandatory` |
+| `structure_damage` | `light`, `moderate`, `severe` |
+| `infrastructure_damage` | `road`, `bridge`, `utility`, `other` |
+| `trapped` | `in_building`, `in_vehicle`, `under_debris` |
 
-```
-1. medical: injury, illness, heavy_bleeding, light_bleeding, unconscious
-2. fire: structural_fire, vehicle_fire, wildfire
-3. flooding: flash_flood, house_flooding, street_flooding
-4. trapped: in_building, in_vehicle, under_debris
-5. missing_person: adult, child, elderly
-6. structure_damage: light, moderate, severe
-7. utility: gas_leak, power_outage, water_outage
-8. supply_request: clothing, food, other, water
-9. infrastructure_damage: bridge, other, road, utility
-10. evacuation: mandatory, voluntary
-```
+The split is stratified by complete category/subcategory path, producing 7,000 training, 1,500 validation, and 1,500 test messages. Stage 2 uses the true category during training and validation, then uses Stage 1's prediction during end-to-end testing.
 
-## Usage
+## Recorded results
 
-### Training a Model
+These are the outputs currently stored in the notebooks for the shared 1,500-message test partition. Subcategory results are end-to-end: they include any errors propagated from category prediction.
 
-Open any notebook in Jupyter:
+| Model | Category accuracy | Category macro F1 | End-to-end accuracy | End-to-end macro F1 |
+| --- | ---: | ---: | ---: | ---: |
+| AWD-LSTM | 98.33% | 98.36% | 97.80% | 97.84% |
+| BERT-base | **100.00%** | **100.00%** | **99.93%** | **99.90%** |
+| DistilBERT-base | **100.00%** | **100.00%** | 99.80% | 99.74% |
+| T5-small | 98.33% | 98.34% | 93.73% | 93.35% |
+| T5-base | **100.00%** | **100.00%** | 99.87% | 99.84% |
 
-```bash
-jupyter notebook distilbert-base-category-subcategory.ipynb
-```
+These figures come from one fixed split and one random seed, so small differences—especially among BERT-base, DistilBERT-base, and T5-base—should not be treated as statistically conclusive. The archived T5-small pre-tuning notebook also evaluated the same split while parameters were being revised; the final T5 results are therefore tuning-aware rather than measurements from a completely untouched confirmation set.
 
-Each notebook includes:
+## Installation
 
-1. Data loading and exploration
-2. Preprocessing and tokenization
-3. Model training with validation
-4. Performance evaluation
-5. Model saving
-
-**Quick Start - DistilBERT** (recommended for efficiency):
-
-```bash
-jupyter notebook distilbert-base-category-subcategory.ipynb
-# Run all cells (Shift+Enter)
-```
-
-### Benchmarking Inference
-
-Compare model performance across architectures:
+Python 3.10 or newer is recommended. A CUDA-capable GPU is optional but substantially reduces Transformer training time.
 
 ```bash
-python benchmark_inference.py --models distilbert_base bert_base t5_small --num-runs 100
+git clone git@github.com:z-evans/emergency-classifier.git
+cd emergency-classifier
+
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
 ```
 
-**Options**:
+The requirements include fastai for the AWD-LSTM notebook and SentencePiece support for the T5 notebooks.
 
-- `--models` - Models to benchmark (default: all)
-- `--num-runs` - Number of inference runs (default: 100)
-- `--batch-size` - Batch size for inference (default: 1)
-- `--device` - Device to use (cuda/cpu, default: auto)
-- `--output` - JSON file for results (default: benchmark_results.json)
+The first run of a notebook downloads its pretrained checkpoint and tokenizer. Ensure that the environment has network access and enough disk space for the selected model.
 
-### Classification Utilities
+## Train and evaluate a model
 
-The `classification_utils.py` module provides reusable functions:
+Start Jupyter from the repository root so that relative paths to the dataset and shared utility module resolve correctly:
+
+```bash
+jupyter notebook
+```
+
+Open one of the following notebooks and run its cells in order:
+
+| Notebook | Pretrained model | Training approach |
+| --- | --- | --- |
+| [`distilbert-base-category-subcategory.ipynb`](distilbert-base-category-subcategory.ipynb) | `distilbert-base-uncased` | Two sequence-classification heads; 128-token limit. |
+| [`bert-base-category-subcategory.ipynb`](bert-base-category-subcategory.ipynb) | `bert-base-uncased` | Two sequence-classification heads; 128-token limit. |
+| [`t5-small-category-subcategory.ipynb`](t5-small-category-subcategory.ipynb) | `t5-small` | Text-to-text category and subcategory generation. |
+| [`t5-base-category-subcategory.ipynb`](t5-base-category-subcategory.ipynb) | `t5-base` | Text-to-text category and subcategory generation. |
+| [`lstm-awd-category-subcategory.ipynb`](lstm-awd-category-subcategory.ipynb) | pretrained AWD-LSTM | Frozen-head training followed by gradual unfreezing. |
+
+[`t5-small-category-subcategory-pre-manual-tuning.ipynb`](t5-small-category-subcategory-pre-manual-tuning.ipynb) preserves the initial T5-small configuration for experimental provenance. Use the main T5-small notebook for the final configuration.
+
+Every main notebook performs the same high-level workflow:
+
+1. Validate and encode the labels.
+2. Create the shared stratified split.
+3. Build separate category and subcategory datasets.
+4. Fine-tune one model for each stage.
+5. Evaluate category performance and the complete cascade.
+6. Save both trained models under `models/`.
+7. Define `predict_emergency(text)` and show example predictions.
+
+For example, after running a notebook's training and save cells:
 
 ```python
-from classification_utils import (
-    accuracy_score,
-    classification_report,
-    ConfusionMatrixDisplay,
-    roc_curve
-)
-
-# Use with any model predictions
-report = classification_report(y_true, y_pred)
-print(report)
+predict_emergency("A person is trapped inside a vehicle")
 ```
 
-## Model Comparison
+The function returns the predicted category, subcategory, and their confidence values. Confidence for Stage 2 is conditional on the category chosen by Stage 1.
 
-| Model      | Size | Speed  | Accuracy | Use Case             |
-| ---------- | ---- | ------ | -------- | -------------------- |
-| DistilBERT | 268M | ⚡⚡⚡ | ✓✓       | Production, mobile   |
-| BERT       | 340M | ⚡⚡   | ✓✓✓      | High accuracy needed |
-| T5-Small   | 60M  | ⚡⚡⚡ | ✓✓       | Lightweight          |
-| T5-Base    | 220M | ⚡⚡   | ✓✓✓      | Balanced             |
-| LSTM-AWD   | 200M | ⚡     | ✓        | Research, custom     |
+Generated `models/`, `results/`, and `logs/` directories are ignored by Git.
 
-## Development
+## Training configuration
 
-### Adding New Categories
+| Architecture | Input length | Train batch | Effective batch | Learning rate | Epochs |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| AWD-LSTM | 72 | 64 | 64 | $1 \times 10^{-2}$ | 1 frozen + 3 unfrozen |
+| BERT-base | 128 | 16 | 16 | $2 \times 10^{-5}$ | 3 maximum |
+| DistilBERT-base | 128 | 16 | 16 | $2 \times 10^{-5}$ | 3 maximum |
+| T5-small | 128 input / 12 target | 16 | 64 | $1 \times 10^{-4}$ | 3 maximum |
+| T5-base | 128 input / 12 target | 16 | 64 | $1 \times 10^{-4}$ | 3 maximum |
 
-1. Update the category/subcategory mappings in `classification_utils.py`
-2. Retrain models with updated dataset
-3. Re-run benchmarks for performance comparison
+Transformer models use AdamW, weight decay 0.01, epoch-level validation and checkpointing, early-stopping patience of two evaluations, and restoration of the checkpoint with the lowest validation loss. T5 obtains its effective batch of 64 through four gradient-accumulation steps.
 
-### Modifying Training Pipeline
+## Benchmark saved models
 
-Each notebook is self-contained and can be customized:
+[`benchmark_inference.py`](benchmark_inference.py) measures the complete prediction path: tokenisation, category inference, construction of the conditioned Stage 2 input, subcategory inference, and final selection. Model loading and warm-up are excluded from timed measurements.
 
-- Adjust hyperparameters (learning rate, batch size, epochs)
-- Modify data preprocessing
-- Change model architecture
-- Add custom loss functions
+Train the requested families first so their artefacts exist under `models/`, then run, for example:
+
+```bash
+python benchmark_inference.py \
+  --families distilbert_base bert_base t5_small \
+  --batch-sizes 1 8 32 \
+  --warmups 2 \
+  --repeats 10 \
+  --threads 8 \
+  --device auto \
+  --output benchmark_results
+```
+
+Supported family names are:
+
+```text
+distilbert_base bert_base t5_small t5_base awd_lstm
+```
+
+The benchmark writes `inference_benchmark.csv` and `inference_benchmark.json` to the selected output directory. `--device auto` uses CUDA when available and otherwise uses the CPU. Exported AWD-LSTM learners are benchmarked on CPU only.
+
+View all command-line options with:
+
+```bash
+python benchmark_inference.py --help
+```
+
+## Project structure
+
+```text
+emergency-classifier/
+├── bert-base-category-subcategory.ipynb
+├── distilbert-base-category-subcategory.ipynb
+├── lstm-awd-category-subcategory.ipynb
+├── t5-base-category-subcategory.ipynb
+├── t5-small-category-subcategory.ipynb
+├── t5-small-category-subcategory-pre-manual-tuning.ipynb
+├── benchmark_inference.py
+├── classification_utils.py
+├── disaster_messages.csv
+├── requirements.txt
+├── LICENSE
+└── README.md
+```
+
+[`classification_utils.py`](classification_utils.py) contains the shared label mappings, split and tokenisation helpers, metrics, ROC analysis, model scoring, and batched prediction functions used by the notebooks.
 
 ## License
 
-MIT License - see [LICENSE](LICENSE) file for details.
-
-Copyright (c) Zack Evans
-
-## References
-
-- [HuggingFace Transformers](https://huggingface.co/transformers/)
-- [DistilBERT Paper](https://arxiv.org/abs/1910.01108)
-- [BERT: Pre-training of Deep Bidirectional Transformers](https://arxiv.org/abs/1810.04805)
-- [Exploring the Limits of Transfer Learning with a Unified Text-to-Text Transformer (T5)](https://arxiv.org/abs/1910.10683)
+This project is available under the [MIT License](LICENSE).
