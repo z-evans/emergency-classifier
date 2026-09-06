@@ -59,10 +59,14 @@ The split is stratified by complete category/subcategory path, producing 7,000 t
 
 [`generate.py`](generate.py) assembles synthetic disaster messages from phrase templates and category metadata using only the Python standard library. It writes the same five CSV columns described above, with `type` set to `disaster` and priority taken from the selected subcategory's metadata.
 
-Before generating data, supply these files under `data/` beside the script; they are currently absent from the repository:
+Generation uses these files under `data/` beside the script:
 
 - `data/disaster_sentence_structure_with_medical.json`: an object containing `opening` and `closing` phrase lists and a `categories` list of objects mapping category IDs to subcategory IDs and their phrase lists.
 - `data/categories.json`: a list of category objects with `id` and `sub` fields; each `sub` list contains objects with a subcategory `id` and optional `priority`.
+
+The combined sentence structure was reconstructed from `data/disaster_sentence_structure.json` and `data/medical_sentence_structure.json` in commit `8201c77`; it is not a recovered copy of the original combined file. It preserves the disaster openings and closings and adds the original medical subcategory phrase lists under `medical`. Category metadata comes from the same commit, excluding the `other` category because it has no phrase templates. Medical-specific patient details, consciousness, breathing, and urgency fields are not used by this generator.
+
+Analysis of `disaster_messages.csv` subsequently added 12 missing openings, 12 closings, and 221 subcategory phrases. Openings and closings were identified by their boundary positions across all ten categories; the remaining phrases were assigned to each row's labelled subcategory. The expanded templates can produce all 10,000 original message texts with the current generator. This is a coverage check against the reconstruction source, not independent validation or proof of exact recovery: original template ordering, unseen phrases, duplicate weights, and stripped punctuation remain uncertain. A fresh 10,000-record run with seed 42 shared 49 complete records with the original dataset, ignoring order.
 
 The script currently defines `main()` without calling it, so invoke it explicitly from the repository root:
 
@@ -199,6 +203,9 @@ python benchmark_inference.py --help
 
 ```text
 emergency-classifier/
+├── data/
+│   ├── categories.json
+│   └── disaster_sentence_structure_with_medical.json
 ├── bert-base-category-subcategory.ipynb
 ├── distilbert-base-category-subcategory.ipynb
 ├── lstm-awd-category-subcategory.ipynb
@@ -213,6 +220,8 @@ emergency-classifier/
 ├── LICENSE
 └── README.md
 ```
+
+[`data/`](data/) contains the category metadata and sentence templates used by [`generate.py`](generate.py) to generate synthetic emergency messages.
 
 [`classification_utils.py`](classification_utils.py) contains the shared label mappings, split and tokenisation helpers, metrics, ROC analysis, model scoring, and batched prediction functions used by the notebooks.
 
