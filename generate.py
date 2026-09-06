@@ -175,3 +175,7 @@ def main():
         raise SystemExit(f"Error: {error}") from error
 
     print(f"Generated {len(messages)} disaster messages in {output_path}")
+
+
+if __name__ == "__main__":
+    main()

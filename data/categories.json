@@ -159,21 +159,9 @@
     "id": "structure_damage",
     "name": "Structure damage",
     "sub": [
-      {
-        "id": "light",
-        "name": "Light",
-        "priority": 4
-      },
-      {
-        "id": "moderate",
-        "name": "Moderate",
-        "priority": 2
-      },
-      {
-        "id": "severe",
-        "name": "Severe",
-        "priority": 1
-      }
+      { "id": "light", "name": "Light", "priority": 4 },
+      { "id": "moderate", "name": "Moderate", "priority": 2 },
+      { "id": "severe", "name": "Severe", "priority": 1 }
     ]
   },
   {
