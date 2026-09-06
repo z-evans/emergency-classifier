@@ -24,6 +24,7 @@ flowchart LR
 - Hierarchically constrained inference that prevents invalid category/subcategory combinations.
 - CPU and CUDA latency/throughput benchmarking for saved models.
 - Accuracy, macro precision, macro recall, macro F1, confusion-matrix, and one-vs-rest ROC-AUC analysis.
+- A synthetic disaster-message CSV generator, with optional reproducible sampling.
 
 ## Dataset
 
@@ -53,6 +54,31 @@ The dataset has 10 categories, 32 distinct subcategory names, and 33 valid categ
 | `trapped` | `in_building`, `in_vehicle`, `under_debris` |
 
 The split is stratified by complete category/subcategory path, producing 7,000 training, 1,500 validation, and 1,500 test messages. Stage 2 uses the true category during training and validation, then uses Stage 1's prediction during end-to-end testing.
+
+## Generate synthetic messages
+
+[`generate.py`](generate.py) assembles synthetic disaster messages from phrase templates and category metadata using only the Python standard library. It writes the same five CSV columns described above, with `type` set to `disaster` and priority taken from the selected subcategory's metadata.
+
+Before generating data, supply these files under `data/` beside the script; they are currently absent from the repository:
+
+- `data/disaster_sentence_structure_with_medical.json`: an object containing `opening` and `closing` phrase lists and a `categories` list of objects mapping category IDs to subcategory IDs and their phrase lists.
+- `data/categories.json`: a list of category objects with `id` and `sub` fields; each `sub` list contains objects with a subcategory `id` and optional `priority`.
+
+The script currently defines `main()` without calling it, so invoke it explicitly from the repository root:
+
+```bash
+python -c 'import generate; generate.main()' 10000 generated/disaster_messages.csv --seed 42
+```
+
+The positional arguments are the positive row count (default `100`) and output path (default `disaster_messages.csv`, relative to the working directory). The output must have a `.csv` extension. Parent directories are created automatically, and an existing output file is overwritten. The example uses a separate output directory to preserve the checked-in dataset.
+
+`--seed` makes sampling and output order reproducible for the same inputs. The generator removes duplicate complete records, shuffles the result, and fails if it cannot produce enough unique records within `count × 100` attempts. Categories and then their subcategories are sampled randomly, so label counts are not guaranteed to be balanced. Generated datasets do not necessarily match the checked-in dataset's label coverage or recorded results.
+
+To view the arguments:
+
+```bash
+python -c 'import generate; generate.main()' --help
+```
 
 ## Recorded results
 
@@ -182,6 +208,7 @@ emergency-classifier/
 ├── benchmark_inference.py
 ├── classification_utils.py
 ├── disaster_messages.csv
+├── generate.py
 ├── requirements.txt
 ├── LICENSE
 └── README.md
